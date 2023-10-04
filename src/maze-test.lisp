@@ -17,10 +17,10 @@
 (defun full-block-map (donjon)
   (with-slots (field tate yoko) donjon
     (loop for i from 0 below tate do
-	 (loop for j from 0 below yoko do
-	      (if (or (= i 0) (= j 0) (= i (1- tate)) (= j (1- yoko)))
-		  (setf (aref field i j) +hard-block+) ;;壊せない壁
-		  (setf (aref field i j) +soft-block+)))))) ;;壊せる壁
+                (loop for j from 0 below yoko do
+                      (if (or (= i 0) (= j 0) (= i (1- tate)) (= j (1- yoko)))
+                          (setf (aref field i j) +hard-block+) ;;壊せない壁
+                          (setf (aref field i j) +soft-block+)))))) ;;壊せる壁
 
 ;;ボスフロア
 (defun create-boss-stage (donjon)
@@ -131,7 +131,7 @@
 
 ;;マップに鍵とドアをセット
 (defun set-key-door (donjon)
-  (with-slots (stop-list field stage enemies lastfloor) donjon
+  (with-slots (stop-list field stage enemies lastfloor items) donjon
     (let* ((len (length stop-list))
 	   (k (random len));; (b (diff-num k len))
 	   (pos (nth k stop-list))
@@ -146,8 +146,8 @@
       					      :posy (* (cadr pos) *obj-h*) :pos pos :level 15
       					      :moto-w *obj-w* :moto-h *obj-h* :hp 1 :maxhp 1
       					      :w *obj-w* :h *obj-h* :w/2 (floor *obj-w* 2) :h/2 (floor *obj-h* 2)
-      					      :obj-type :chest :img-h +chest+ :img 0)
-      			enemies))
+      					      :obj-type :chest :img-h +chest+ :img +chest+)
+      			items))
     )))
 
 ;;確率部分をnum以上のモノを1下げる
@@ -273,16 +273,16 @@
 	       hp maxhp ido-spd expe w/2 h/2 img-h img) e
     (setf hp      3
 	  maxhp   hp
-	  level   3)
+	  level   3
 	  str     level
 	  def     50
 	  expe    300
-	  img-h   +yote-anime+))
+	  img-h   +yote-anime+)))
 
 ;;敵生成
 (defun create-enemy (e-pos donjon)
   (let ((e (appear-enemy)))
-    (with-slots (x y dir img pos posx posy sight) e
+    (with-slots (x y dir img pos posx posy sight anime-max move-spd) e
       (setf x (car e-pos)
 	    posx (* x *obj-w*)
 	    y (cadr e-pos)
@@ -290,7 +290,13 @@
 	    pos e-pos
 	    dir +down+
 	    sight (+ 2 (random 6))
-	    img 1)
+	    img 1
+	    moto-w 32
+	    moto-h 32
+ 	    w 32
+	    h 32
+	    anime-max 3
+	    move-spd 8)
       (set-enemy-status e (stage donjon))
       e)))
   
@@ -395,7 +401,7 @@
 	 ;;(setf (aref (donjon-map map) starty startx) 1) ;;主人公の位置
 	 (setf (pos p) (list  startx  starty) ;;初期位置
 	       (x p) (car (pos p))
-	       (posx p) (* (x p) *obj-w*)
+	       (posx p) (+ (* (x p) *obj-w*) 4)
 	       (y p) (cadr (pos p))
 	       (posy p) (* (y p) *obj-h*))
 	 ;;パーティーの位置に敵を配置しないようにする

@@ -22,7 +22,7 @@
     (select-object hmemdc *anime-monsters-img*)
     (let ((x (+ (posx e) (atk-pos-x e)))
 	  (y (+ (posy e) (atk-pos-y e))))
-      (new-trans-blt x y (* (moto-w e) (img e)) (* *obj-h* (img-h e))
+      (new-trans-blt x y  (img e) (* *obj-h* (img-h e))
 		     (moto-w e) (moto-h e) (moto-w e) (moto-h e)  hdc hmemdc))))
       ;; (bit-blt hdc x y hmemdc (* (moto-w e) (img e)) (* *obj-h* (img-h e))
       ;; 		     :width (moto-w e) :height (moto-h e) :raster-op :srccopy))))
@@ -53,22 +53,32 @@
 ;;プレイヤー表示
 (defun render-player (hdc hmemdc)
   (with-slots (p) *game*
-  (select-object hmemdc *p-img*)
-  (let ((x (+ (posx p) (atk-pos-x p)))
-	(y (+ (posy p) (atk-pos-y p))))
-    (new-trans-blt x y (* *p-w* (img p)) (* *p-h* (dir p))
-		   (w p) (h p) (moto-w p) (moto-h p) hdc hmemdc))))
+    (with-slots (posx posy atk-pos-x atk-pos-y img img-h w h moto-w moto-h atk-now dir) p
+      (select-object hmemdc *p-img*)
+      (let ((x (+ posx atk-pos-x ))
+	    (y (+ posy atk-pos-y )))
+	(new-trans-blt x y  img (* *p-h* img-h)
+		       w h moto-w moto-h hdc hmemdc)
+	(when atk-now
+	  (select-object hmemdc *buki-img*)
+	  (cond
+	    ((= dir +right+) (incf x 16))
+	    ((= dir +left+) (decf x 16))
+	    ((= dir +up+)   (decf y 16))
+	    ((= dir +down+) (incf y 16)))
+	  (new-trans-blt x y  (* (floor img 24) 28) (* *p-h* dir)
+		       28 h 28 moto-h hdc hmemdc))))))
     ;; (bit-blt hdc x y hmemdc (* *p-w* (img *p*)) (* *p-h* (p-dir-num))
     ;; 		   :width (moto-w *p*) :height (moto-h *p*) :raster-op :srccopy)))
 
 
 (defun render-arrow (hdc hmemdc)
-  (with-slots (donjon) *game*
-  (when (arrow donjon)
-    (with-slots (arrow) donjon
-      (select-object hmemdc (img-src arrow))
-      (new-trans-blt (posx arrow) (posy arrow) (* *obj-w* (img arrow)) (* *obj-h* (img-h arrow))
-		     *obj-w* *obj-h* *obj-w* *obj-h* hdc hmemdc)))))
+  (with-slots (long-atk-chara) *game*
+    (when long-atk-chara
+      (loop :for arrow :in long-atk-chara
+	    :do (select-object hmemdc (img-src arrow))
+		(new-trans-blt (posx arrow) (posy arrow) (* *obj-w* (img arrow)) (* *obj-h* (img-h arrow))
+			       *obj-w* *obj-h* *obj-w* *obj-h* hdc hmemdc)))))
 
 ;;*objs-img*の描画
 (defun render-objs-img (pos img hdc hmemdc)
@@ -114,8 +124,8 @@
 
 
 ;;経験値表示
-(defun render-exp-bar (exp num hdc)
-  (let* ((len (floor (* (/ exp 100) *bukiexpbar-max*)))
+(defun render-exp-bar (exp lvup-exp num hdc)
+  (let* ((len (floor (* (/ exp lvup-exp) *bukiexpbar-max*)))
 	 (left (+ *map-w* 10))
 	 (bottom num)
 	 (top (- bottom 15))
@@ -137,9 +147,9 @@
 
 ;;プレイヤーのステータス表示
 (defun render-p-status (hdc hmemdc)
-  (with-slots (p donjon bgm-p) *game*
+  (with-slots (p donjon bgm-p donjon-name) *game*
     (with-slots (name level hp maxhp str def hammer weapon armor potion arrow-num orb expe
-		 poison-cnt) p
+		 poison-cnt lvup-exp) p
       (let* ((num 10)
 	     (bgm (if bgm-p "playing" "stop"))
 	     (hp-bar-color (if (> poison-cnt 0) +purple+ +green+))
@@ -169,7 +179,7 @@
 	    (text-out hdc (format nil "攻:~2d" str) left (hoge40 num))
 	    (text-out hdc (format nil "防:~2d" def) left (hoge25 num))
 	    (text-out hdc (format nil "exp") left (hoge25 num))
-	    (render-exp-bar expe (+ (hoge25 num) 15) hdc)
+	    (render-exp-bar expe lvup-exp (+ (hoge25 num) 15) hdc)
 	    ;;hammer
 	    (hoge25 num)
 	    (select-object hmemdc *objs-img*)
@@ -190,11 +200,11 @@
 	    ;;potion
 	    (new-trans-blt left num (* *obj-w* +potion+) 0
 			   32 32 32 32 hdc hmemdc)
-	    (text-out hdc (format nil "x ~d  (x)" potion)  (+ *map-w* 50) (- (hoge25 num) 20))
+	    (text-out hdc (format nil "x ~d  (c)" potion)  (+ *map-w* 50) (- (hoge25 num) 20))
 	    ;;arrow
 	    (new-trans-blt left (+ num 10) (* *obj-w* +arrow+) 0
 			   32 32 32 32 hdc hmemdc)
-	    (text-out hdc (format nil "x ~d  (z)" arrow-num)  (+ *map-w* 50) (- (hoge25 num) 10))
+	    (text-out hdc (format nil "x ~d  (x)" arrow-num)  (+ *map-w* 50) (- (hoge25 num) 10))
 	    ;;orb
 	    (new-trans-blt left (+ num 20) (* *obj-w* +orb+) 0
 			   32 32 32 32 hdc hmemdc)
@@ -202,19 +212,28 @@
 	    ;;(text-out hdc (format nil "w:~2d" *change-screen-w*) (+ *map-w* 10) 250)
 	    ;;(text-out hdc (format nil "h:~2d" *change-screen-h*) (+ *map-w* 10) 290)
 	    (select-object hdc *font30*)
-	    (set-text-color hdc (encode-rgb 255 255 255))
-	    (text-out hdc (format nil "モゲゾウの迷宮 ~2,'0d階" (stage donjon)) 10 (+ *map-h* 5))
+	    (set-text-color hdc (encode-rgb 15 185 125))
+            
+	    (text-out hdc (format nil "~a ~2,'0d階" donjon-name (stage donjon)) 10 (+ *map-h* 5))
+            (set-text-color hdc (encode-rgb 255 255 255))
 	    (text-out hdc (format nil "~2,'0d:~2,'0d:~2,'0d:~2,'0d" h m s ms) 200 (+ *map-h* 5))
-	    (text-out hdc (format nil "※shift+方向キーでダッシュ") 10 (+ *map-h* 30))
-	    (text-out hdc (format nil "※壁に体当たりすると壊せる(要:ハンマー)") 10 (+ *map-h* 50))
-	    (text-out hdc (format nil "※cで待機") 10 (+ *map-h* 70))
+            (set-text-color hdc (encode-rgb 125 125 255))
+	    (text-out hdc (format nil "※shift+方向キーでダッシュ ctrl+方向キーで向き変更")
+		      10 (+ *map-h* 30))
+            (set-text-color hdc (encode-rgb 255 255 0))
+	    (text-out hdc (format nil "※壁に攻撃(z)すると壊せる(要:ハンマー)") 10 (+ *map-h* 50))
+            (set-text-color hdc (encode-rgb 255 0 255))
+	    (text-out hdc (format nil "※zで攻撃") 10 (+ *map-h* 70))
+            (set-text-color hdc (encode-rgb 0 255 255))
 	    (text-out hdc (format nil "※aで装備変更画面") 10 (+ *map-h* 90))
+            (set-text-color hdc (encode-rgb 255 255 255))
+        (select-object hdc *font20*)
 	    (text-out hdc (format nil "※BGMのON/OFF(b)") 610 (+ *map-h* 5))
 	    (text-out hdc (format nil "   now:~a" bgm) 610 (+ *map-h* 30))
 	    (text-out hdc (format nil "※ゲーム終了(esc)") 610 (+ *map-h* 60))
-	    (when (door p)
+	    ;;(when (door p)
 	      (set-text-color hdc (encode-rgb 0 255 255))
-	      (text-out hdc (format nil "Enterで次の階層へ") 350 (+ *map-h* 10)))
+	      (text-out hdc (format nil "ドアの上でEnterで次の階層へ") 350 (+ *map-h* 5))
 	    ))))))
 
 
@@ -236,31 +255,35 @@
     
 
 ;;ダメージ表示
-(defun render-damage (e color hdc)
-  (with-slots (dmg) e
-    (when dmg
-      (select-object hdc *font20*)
-      ;;縁取り
-      (set-text-color hdc (encode-rgb 0 0 0))
-      (text-out hdc (format nil "~d" (dmg-num dmg)) (- (posx dmg) 2) (posy dmg))
-      (text-out hdc (format nil "~d" (dmg-num dmg)) (+ (posx dmg) 2) (posy dmg))
-      (text-out hdc (format nil "~d" (dmg-num dmg)) (posx dmg) (- (posy dmg) 2))
-      (text-out hdc (format nil "~d" (dmg-num dmg)) (posx dmg) (+ (posy dmg) 2))
-      ;;
-      (set-text-color hdc color)
-      (text-out hdc (format nil "~d" (dmg-num dmg)) (posx dmg) (posy dmg))
-      )))
+(defun render-damage (d hdc)
+  (with-slots (color dmg-num posx posy) d
+    (select-object hdc *font20*)
+    ;;縁取り
+    (set-text-color hdc (encode-rgb 0 0 0))
+    (text-out hdc (format nil "~d" dmg-num) (- posx 2) posy)
+    (text-out hdc (format nil "~d" dmg-num) (+ posx 2) posy)
+    (text-out hdc (format nil "~d" dmg-num) posx (- posy 2))
+    (text-out hdc (format nil "~d" dmg-num) posx (+ posy 2))
+    ;;
+    (set-text-color hdc color)
+    (text-out hdc (format nil "~d" dmg-num) posx posy)
+    ))
 
 ;;全てのダメージ表示
 (defun render-all-damage (hdc)
-  (with-slots (p donjon) *game*
-  (render-damage p (encode-rgb 255 147 122) hdc)
-  ;;(render-hpbar *p*)
-  (loop for e in (enemies donjon)
-     do (render-damage e  (encode-rgb 255 255 255) hdc)
-       (when (and (/= (maxhp e) (hp e))
-		  (null (dead e)))
-	 (render-hp-bar e hdc)))))
+  (with-slots (dmg) *game*
+    (loop for d in dmg
+	  do (with-slots (color) d
+	       (render-damage d hdc)))))
+
+(Defun render-monster-hp-bar (hdc)
+  (with-slots (donjon) *game*
+    (with-slots (enemies) donjon
+      (loop :for e :in enemies
+	    :do (with-slots (maxhp hp dead) e
+		  (when (and (/= (maxhp e) (hp e))
+			     (null (dead e)))
+		    (render-hp-bar e hdc)))))))
 
 
 ;;test
@@ -277,18 +300,18 @@
   (select-object hdc *font140*)
   
   (set-text-color hdc (encode-rgb 0 155 255))
-  (text-out hdc (format nil "~a" mes1) 50 70)
+  (text-out hdc (format nil "~a" mes1) 60 50)
   (when (eq state :gameover)
-    (text-out hdc (format nil "~d階で力尽きた" (stage donjon)) 5 200))
+    (text-out hdc (format nil "~3d階で力尽きた" (stage donjon)) 10 200))
   (select-object hmemdc *objs-img*)
   (if (= cursor 0)
       (bit-blt hdc 280 360 hmemdc (* 32 +cursor+) 0 :width 32 :height 32 :raster-op :srccopy)
       (bit-blt hdc 280 410 hmemdc (* 32 +cursor+) 0 :width 32 :height 32 :raster-op :srccopy))
   (select-object hdc *font40*)
   (set-text-color hdc (encode-rgb 255 255 255))
-  (let ((r (get-client-rect hwnd)))
-    (text-out hdc (format nil "w:~d h:~d" *change-screen-w* *change-screen-h*) 330 260)
-    (text-out hdc (format nil "cw:~d ch:~d" (rect-right r) (rect-bottom r)) 330 310))
+  ;;(let ((r (get-client-rect hwnd)))
+  ;;  (text-out hdc (format nil "w:~d h:~d" *change-screen-w* *change-screen-h*) 330 260)
+  ;;  (text-out hdc (format nil "cw:~d ch:~d" (rect-right r) (rect-bottom r)) 330 310))
   (text-out hdc (format nil "~a" mes2) 330 360)
   (text-out hdc (format nil "おわる") 330 410)))
 
@@ -397,7 +420,10 @@
 
 ;;装備変更画面の説明文
 (defun render-description-item-gamen (hdc)
-  (with-slots (cursor) *game*
+  (with-slots (cursor p) *game*
+    (with-slots (item item-page) p
+      (let* ((item-max (1- (length item)))
+	     (item-page-max (floor item-max *item-show-max*)))
     (select-object hdc *font20*)
     (set-text-color hdc (encode-rgb 255 255 255))
     (text-out hdc "所持品リスト" 60 5)
@@ -406,9 +432,10 @@
     (text-out hdc "選択中のアイテム" 270 195)
     (text-out hdc "※捨てる:アイテムにカーソルを合わせてxキー" 270 430)
     (text-out hdc "装備中のアイテムは捨てることができません" 280 455)
-    (text-out hdc (format nil "次→")  180 415)
-    (text-out hdc (format nil "←前")  40 415)
-    (text-out hdc (format nil "戻る(a or esc)")  40 470)))
+    (text-out hdc (format nil "次→")  200 415)
+    (text-out hdc (format nil "←前")  30 415)
+    (text-out hdc (format nil "ページ ~d/~d" (1+ item-page) (1+ item-page-max)) 90 415)
+    (text-out hdc (format nil "戻る( a )")  40 470)))))
 
 
 ;;持っている武器を表示 TODO 
@@ -514,25 +541,55 @@
   (new-trans-blt 260 220 0 0 128 128 250 210 hdc hmemdc)
   )
 
+
+(defun get-time-string (n)
+  (multiple-value-bind (h m s ms) (get-hms n)
+    (format nil "~2,'0d時間~2,'0d分~2,'0d秒~2,'0d" h m s ms)))
+
 (defun render-choose-difficulty (hdc hmemdc)
   (with-slots (cursor) *game*
-    (select-object hdc *font40*)
-    (set-text-color hdc (encode-rgb 255 255 255))
-    (text-out hdc "難易度を選択してください" 100 10)
-    (text-out hdc "モゲゾウ平原(～10F)"  100 100)
-    (set-text-color hdc (encode-rgb 255 255 0))
-    (text-out hdc "もげぞうの洞窟(～30F)"  100 150)
-    (set-text-color hdc (encode-rgb 255 0 0))
-    (text-out hdc "もげぞうの森(～50F)"  100 200)
-    (set-text-color hdc (encode-rgb 255 0 255))
-    (text-out hdc "もげぞうの迷宮(～100F)" 100 250)
-    (select-object hmemdc *objs-img*)
-    (let ((y (case cursor
-	       (0 100)
-	       (1 150)
-	       (2 200)
-	       (3 250))))
-      (new-trans-blt 50 y (* 32 +cursor+) 0 32 32 32 32 hdc hmemdc))))
+    (let ((don1 (nth 0 *donjon-clear-time-list*))
+	  (don2 (nth 1 *donjon-clear-time-list* ))
+	  (don3 (nth 2 *donjon-clear-time-list* ))
+	  (don4 (nth 3 *donjon-clear-time-list* ))
+	  (time-x 470)
+	  (nashi-x 580))
+      (select-object hdc *font40*)
+      (set-text-color hdc (encode-rgb 255 255 255))
+      (text-out hdc "難易度を選択してください" 50 10)
+      (text-out hdc "最速クリアタイム" 500 40)
+      (text-out hdc "モゲゾウ平原     (～10階)"  60 100)
+      (if (> don1 0)
+	  (text-out hdc (Get-time-string don1) time-x 100)
+	  (text-out hdc "なし" nashi-x 100))
+      (set-text-color hdc (encode-rgb 255 255 0))
+      (text-out hdc "もげぞうの洞窟  (～30階)"  60 150)
+      (if (> don2 0)
+	  (text-out hdc (Get-time-string don2) time-x 150)
+	  (text-out hdc "なし" nashi-x 150))
+      (set-text-color hdc (encode-rgb 255 0 0))
+      (text-out hdc "もげぞうの森      (～50階)"  60 200)
+      (if (> don3 0)
+	  (text-out hdc (Get-time-string don3) time-x 200)
+	  (text-out hdc "なし" nashi-x 200))
+      (set-text-color hdc (encode-rgb 255 0 255))
+      (text-out hdc "もげぞうの迷宮 (～100階)" 60 250)
+      (if (> don4 0)
+	  (text-out hdc (Get-time-string don1) time-x 250)
+	  (text-out hdc "なし" nashi-x 250))
+      (select-object hmemdc *objs-img*)
+      (let ((y (case cursor
+                 (0 100)
+                 (1 150)
+                 (2 200)
+                 (3 250))))
+        (new-trans-blt 20 y (* 32 +cursor+) 0 32 32 32 32 hdc hmemdc))
+      (select-object hmemdc *objs-img*)
+      (new-trans-blt 380 400 (* *obj-w* +orb+) 0
+                     32 32 32 32 hdc hmemdc)
+      (set-text-color hdc (encode-rgb 0 254 0))
+      (text-out hdc "最上階でオーブ     を手に入れよう！" 150 400)
+      )))
 
 ;;ゲーム全体描画
 (defun render-game (hdc hmemdc hwnd)
@@ -552,6 +609,7 @@
      (render-player hdc hmemdc)
      (render-arrow hdc hmemdc)
      (render-all-damage hdc)
+     (render-monster-hp-bar hdc)
      (render-p-status hdc hmemdc)
      (render-get-item hdc)
      )

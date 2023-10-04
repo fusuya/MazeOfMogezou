@@ -124,7 +124,7 @@
 (defun drop-list (lst)
   (loop :for i :in (reverse lst)
      :for rate :from 1 
-     :collect (cons i (expt 1.27 rate))))
+     :collect (cons i (expt 1.28 rate))))
 
 
 (defun create-drop-item-list (lst)

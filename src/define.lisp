@@ -1,9 +1,9 @@
 (in-package :mazeofmogezou)
 
 
-(defparameter *data-root* (asdf:system-source-directory 'mazeofmogezou))
-(defparameter *img-root* (merge-pathnames "img/" *data-root*))
-(defparameter *sound-root* (merge-pathnames "sound/" *data-root*))
+;;(defparameter *data-root* (asdf:system-source-directory 'mazeofmogezou))
+;;(defparameter *img-root* (merge-pathnames "img/" *data-root*))
+;;(defparameter *sound-root* (merge-pathnames "sound/" *data-root*))
 
 (defmacro with-double-buffering-2 ((var hwnd) &body body)
   "Evaluate body in a WITH-PAINT context where VAR is bound to an in-memory HDC
@@ -38,10 +38,10 @@ when drawing lots of small items on the screen."
 
 ;;時間変換
 (defun get-hms (n)
-  (multiple-value-bind (h m1) (floor n 3600000)
-    (multiple-value-bind (m s1) (floor m1 60000)
-      (multiple-value-bind (s ms1) (floor s1 1000)
-	(multiple-value-bind (ms) (floor ms1 10)
+  (multiple-value-bind (h m1) (floor n 3600000000)
+    (multiple-value-bind (m s1) (floor m1 60000000)
+      (multiple-value-bind (s ms1) (floor s1 1000000)
+	(multiple-value-bind (ms) (floor ms1 10000)
 	  (values h m s ms))))))
 
 
@@ -75,7 +75,7 @@ when drawing lots of small items on the screen."
     imgs))
 
 (defparameter *atk-width* 8)
-(defparameter *atk-pos-max* (* *atk-width* 3)) 
+(defparameter *atk-pos-max* (* *atk-width* 2)) 
 
 (defparameter *p-img* nil)
 (defparameter *p-atk-img* nil)
@@ -105,10 +105,12 @@ when drawing lots of small items on the screen."
 ;; (defconstant +orc-atk+ 9)
 ;; (defconstant +chest+ 10)
 
-(my-enum  +brigand-anime+ +dragon-anime+ +hydra-anime+ +yote-anime+ +orc-anime+
-	  +slime-anime+ +bubble-anime+ +skeleton-anime+  +hydra-atk+ +brigand-ball+ +dragon-fire+ +orc-atk+ +chest+)
+(my-enum +player+ +enemy+)
 
-(defparameter *enemy-appear-rate* '((:slime . 250) (:orc . 180) (:skeleton . 150) (:bubble . 120)
+(my-enum  +brigand-anime+ +dragon-anime+ +hydra-anime+ +yote-anime+ +orc-anime+
+	  +slime-anime+ +bubble-anime+ +skeleton-anime+  +hydra-atk+ +brigand-ball+ +dragon-fire+ +orc-atk+)
+
+(defparameter *enemy-appear-rate* '((:slime . 450) (:orc . 280) (:skeleton . 150) (:bubble . 120)
 				    (:brigand . 80) (:hydra . 40) (:dragon . 10) (:yote1 . 1)))
 
 
@@ -228,8 +230,8 @@ when drawing lots of small items on the screen."
 (defparameter *status-h* 160)
 
 
-(defparameter *screen-w* (+ *map-w* *status-w*))
-(defparameter *screen-h* (+ *map-h* *status-h*))
+(defparameter *screen-w*  (+ *map-w* *status-w*))
+(defparameter *screen-h*  (+ *map-h* *status-h*))
 
 (defparameter *change-screen-w* *screen-w*)
 (defparameter *change-screen-h* *screen-h*)
@@ -280,6 +282,8 @@ when drawing lots of small items on the screen."
 	(incf a)
 	a)))
 
+(defparameter *buki-img* nil)
+
 (defun load-images ()
   (setf *objs-img*           (load-image (namestring (merge-pathnames "objs-img4.bmp" *img-root*))
 		 			 :type :bitmap
@@ -290,15 +294,18 @@ when drawing lots of small items on the screen."
 	*arrow-img*          (load-image (namestring (merge-pathnames "arrow.bmp" *img-root*))
 					 :type :bitmap
 					 :flags '(:load-from-file :create-dib-section))
-	*p-img*              (load-image  (namestring (merge-pathnames "p-ido-anime.bmp" *img-root*))
+	*p-img*              (load-image  (namestring (merge-pathnames "p-ido-anime2.bmp" *img-root*))
 					  :type :bitmap
 					  :flags '(:load-from-file :create-dib-section))
-	*anime-monsters-img* (load-image (namestring (merge-pathnames "monsters.bmp" *img-root*))
+	*anime-monsters-img* (load-image (namestring (merge-pathnames "monsters2.bmp" *img-root*))
+					 :type :bitmap
+					 :flags '(:load-from-file :create-dib-section))
+	*buki-img* (load-image (namestring (merge-pathnames "buki-anime.bmp" *img-root*))
 					 :type :bitmap
 					 :flags '(:load-from-file :create-dib-section))
 	))
 
-(my-enum +boots+ +door+ +hammer+ +hard-block+ +key+ +potion+ +soft-block+ +yuka+ +sword+ +cursor+ +armour+ +arrow+ +orb+)
+(my-enum +boots+ +door+ +hammer+ +hard-block+ +key+ +potion+ +soft-block+ +yuka+ +sword+ +cursor+ +armour+ +arrow+ +orb+ +chest+)
 
 (my-enum +purple+ +red+ +green+ +blue+ +yellow+ +cyan+ +pink+ )
 
@@ -306,9 +313,18 @@ when drawing lots of small items on the screen."
 
 (defclass game ()
   ((state     :accessor state     :initform nil :initarg :state)
+   (donjon-name     :accessor donjon-name     :initform nil :initarg :donjon-name)
+   (turn      :accessor turn      :initform +player+ :initarg :turn)
+   (move-chara      :accessor move-chara      :initform nil :initarg :move-chara)
+   (atk-chara      :accessor atk-chara      :initform nil :initarg :atk-chara)
+   (long-atk-chara      :accessor long-atk-chara      :initform nil :initarg :long-atk-chara)
+   (diffculty :accessor diffculty :initform 0 :initarg :diffculty)
    (bgm-p     :accessor bgm-p     :initform t   :initarg :bgm-p)
    (bgm-alias :accessor bgm-alias :initform nil :initarg :bgm-alias)
    (p         :accessor p         :initform nil :initarg :p)
+   (dmg    :accessor dmg    :initform nil :initarg :dmg)
+   (monster-atk-c    :accessor monster-atk-c    :initform 0 :initarg :monster-atk-c)
+   (set-dmg-flag    :accessor set-dmg-flag    :initform nil :initarg :set-dmg-flag)
    (donjon    :accessor donjon    :initform nil :initarg :donjon)
    (endtime   :accessor endtime   :initform nil :initarg :endtime)
    (cursor    :accessor cursor    :initform 0   :initarg :cursor)))
@@ -321,6 +337,7 @@ when drawing lots of small items on the screen."
    (enter :accessor enter :initform nil :initarg :enter)
    (shift :accessor shift :initform nil :initarg :shift)
    (esc   :accessor esc :initform nil :initarg :esc)
+   (ctrl   :accessor ctrl :initform nil :initarg :ctrl)
    (w     :accessor w     :initform nil :initarg :w)
    (b     :accessor b     :initform nil :initarg :b)
    (a     :accessor a     :initform nil :initarg :a)
@@ -372,6 +389,7 @@ when drawing lots of small items on the screen."
    (w/2      :accessor w/2      :initform 0      :initarg :w/2)
    (h/2      :accessor h/2      :initform 0      :initarg :h/2)
    (obj-type :accessor obj-type :initform 0      :initarg :obj-type)
+   (img-x     :accessor img-x     :initform 30    :initarg :img-x)
    (img-h    :accessor img-h    :initform 0      :initarg :img-h)
    (img-src  :accessor img-src    :initform 0      :initarg :img-src)
    (dir       :accessor dir       :initform :down :initarg :dir)     ;;現在の方向
@@ -382,6 +400,9 @@ when drawing lots of small items on the screen."
   ((dmg-num  :accessor dmg-num   :initform 0     :initarg :dmg-num)
    (miny     :accessor miny      :initform 0     :initarg :miny)
    (maxy     :accessor maxy      :initform 0     :initarg :maxy)
+   (vx     :accessor vx      :initform 0     :initarg :vx)
+   (vy     :accessor vy      :initform 0     :initarg :vy)
+   (interval     :accessor interval      :initform 0     :initarg :interval)
    (color    :accessor color     :initform 0     :initarg :color)
    (y-dir    :accessor y-dir     :initform :up   :initarg :y-dir)
    (x-dir    :accessor x-dir     :initform :left :initarg :x-dir)
@@ -391,8 +412,21 @@ when drawing lots of small items on the screen."
   ((atk  :accessor atk       :initform 0   :initarg :atk)
    (name :accessor name      :initform nil :initarg :name)))
 
+(defclass anime-obj (obj)
+  ((anime-now     :accessor anime-now     :initform 0    :initarg :anime-now)
+   (nextposx     :accessor nextposx     :initform 0    :initarg :nextposx)
+   (nextposy     :accessor nextposy     :initform 0    :initarg :nextposy)
+   (action-p     :accessor action-p     :initform nil    :initarg :action-p)
+   (actioned-p     :accessor actioned-p     :initform nil    :initarg :actioned-p)
+   (move-p     :accessor move-p     :initform nil    :initarg :move-p)
+   (move-spd     :accessor move-spd     :initform 4    :initarg :move-spd)
+   (move-c     :accessor move-c     :initform 0    :initarg :move-c)
+   (anime-interval     :accessor anime-interval     :initform 20    :initarg :anime-interval)
+   (anime-max     :accessor anime-max     :initform 3    :initarg :anime-max)
+   (anime-time     :accessor anime-time     :initform 0    :initarg :anime-time)))
+
 ;;プレイヤーと敵で共通で使うやつ
-(defclass common (obj)
+(defclass common (anime-obj)
   ((hp        :accessor hp        :initform 30    :initarg :hp)
    (maxhp     :accessor maxhp     :initform 30    :initarg :maxhp)
    (agi       :accessor agi       :initform 30    :initarg :agi)
@@ -412,6 +446,7 @@ when drawing lots of small items on the screen."
    (dir-c     :accessor dir-c     :initform 0     :initarg :dir-c)   ;;方向転換用カウンター
    (atk-now   :accessor atk-now   :initform nil   :initarg :atk-now) ;;攻撃中か
    (atk-c     :accessor atk-c     :initform 0     :initarg :atk-c)   ;;攻撃モーション更新用
+   (atk-interval     :accessor atk-interval     :initform 4     :initarg :atk-interval)
    (atk-img   :accessor atk-img   :initform 0     :initarg :atk-img) ;;攻撃画像番号 ０～２
    (atk-spd   :accessor atk-spd   :initform 10    :initarg :atk-spd) ;;攻撃速度
    (expe      :accessor expe      :initform 0     :initarg :expe) ;;もらえる経験値orプレイヤーの所持経験値
@@ -450,10 +485,19 @@ when drawing lots of small items on the screen."
    (centery      :accessor centery    :initform 30  :initarg :centery)
    (deg          :accessor deg        :initform 10  :initarg :deg)))
 
+(defclass hydra-head (hydra)
+  ())
+
 (defclass dragon (brigand)
   ())
 
 (defclass yote1 (enemy)
+  ())
+
+(defclass fire (obj)
+  ((belong      :accessor belong    :initform nil  :initarg :belong)))
+
+(defclass arrow (fire)
   ())
 
 ;;プレイヤー用
@@ -537,3 +581,23 @@ when drawing lots of small items on the screen."
         *font30* (create-font "MSゴシック" :height 30)
         *font20* (create-font "MSゴシック" :height 25)
 	*font2* (create-font "MSゴシック" :height 15)));; :width 12 :weight (const +fw-bold+))))
+
+
+(defparameter *donjon-clear-time-list* '(0 0 0 0))
+(defparameter *donjon1-time* 0)
+(defparameter *donjon2-time* 0)
+(defparameter *donjon3-time* 0)
+(defparameter *donjon4-time* 0)
+
+(Defun load-save-clear-time  ()
+  (with-open-file (in "./time.moge" :direction :input)
+    (loop :for i :from 0
+	  :for num = (read in nil)
+	  :while num
+	  :do (setf (nth i *donjon-clear-time-list* ) num))))
+
+(defun write-clear-time ()
+  (with-open-file (out "./time.moge" :direction :output
+		       :if-exists :supersede)
+    (loop :for num :in *donjon-clear-time-list*
+	  :do (format out "~d~%" num))))

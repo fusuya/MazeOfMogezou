@@ -1007,7 +1007,8 @@
   (with-slots (dash-p) p
     (cond
       ((check-hydra-around-player e p)
-       (set-hydra-attack e))
+       (set-hydra-attack e)
+       (setf dash-p nil))
       ;;((>= (sight e) (manhatan (pos e) (pos p)))
       ;; (update-tracking-pos e))
       (t
@@ -1290,14 +1291,15 @@
     (with-slots (enemies) donjon
       (loop :for e :in enemies
 	    :do (with-slots (x y posx posy w h actioned-p move-p) e
-		  (update-dash e p)
+		  ;;(update-dash e p)
+          (update e p)
 		  (setf posx (* x w)
 			posy (* y h)
 			move-p nil
 			actioned-p nil)))
       (setf move-chara nil))))
 
-;;プレイヤーダッシュ
+;;プレイヤーダッシュ1
 (defun update-dash-player (p)
   (with-slots (up down right left) *keystate*
     (with-slots (x y posx posy pos w h dir dash-p img-h move-p) p
@@ -1316,15 +1318,15 @@
 			     '(1 0))))
 	    (nextpos (mapcar #'+ pos next)))
 	(cond
-	  ((hit-hantei nextpos :walls t :blocks t :enemies t)
-	   (setf dash-p nil
-		 move-p nil))
-	  (t (setf pos nextpos
-		   x (car pos)
-		   y (cadr pos)
-		   posx (+ (* x *obj-w*) 4)
-		   posy (* y *obj-h*))
-	     ))))))
+      ((hit-hantei nextpos :walls t :blocks t :enemies t)
+       (setf dash-p nil
+             move-p nil))
+      (t (setf pos nextpos
+               x (car pos)
+               y (cadr pos)
+               posx (+ (* x *obj-w*) 4)
+               posy (* y *obj-h*))
+         ))))))
 
 ;;ダッシュ
 (defun update-dash-move (p)
@@ -1332,13 +1334,15 @@
     (with-slots (up down right left) *keystate*
       (setf dash-p t)
       (loop :while dash-p
-	    :do 
-	       (update-dash-player p)
-	       (player-hit-item p)
-	    :when (null dash-p)
-	      :return nil
-	    :do
-	       (update-dash-enemies p)))))
+            :do
+               (update-dash-player p)
+               (player-hit-item p)
+            ;;:when (null dash-p)
+            ;;  :return nil
+            :do
+               (update-dash-enemies p)
+            :when (null dash-p)
+              :return nil))))
 
 
 ;;その場で向きだけ変える

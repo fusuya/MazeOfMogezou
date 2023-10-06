@@ -84,11 +84,11 @@
 (defun render-objs-img (pos img hdc hmemdc)
   (select-object hmemdc *objs-img*)
   (let ((x (* (car pos) *obj-w*))
-	(y (* (cadr pos) *obj-h*)))
+        (y (* (cadr pos) *obj-h*)))
     (new-trans-blt x y (* *obj-w* img) 0
-		   *obj-w* *obj-h*  *obj-w* *obj-h* hdc hmemdc)))
-    ;; (bit-blt hdc x y hmemdc (* *obj-w* img) 0
-    ;; 		   :width *obj-w* :height *obj-h* :raster-op :srccopy)))
+                   *obj-w* *obj-h*  *obj-w* *obj-h* hdc hmemdc)))
+;; (bit-blt hdc x y hmemdc (* *obj-w* img) 0
+;; 		   :width *obj-w* :height *obj-h* :raster-op :srccopy)))
 
 
 (defun render-field (hdc hmemdc)
@@ -107,8 +107,8 @@
 ;;鍵とか描画
 (defun render-item (hdc hmemdc)
   (with-slots (donjon) *game*
-  (loop for obj in (items donjon)
-     do (render-objs-img (pos obj) (img obj) hdc hmemdc))))
+    (loop for obj in (items donjon)
+          do (render-objs-img (pos obj) (img obj) hdc hmemdc))))
 
 
 

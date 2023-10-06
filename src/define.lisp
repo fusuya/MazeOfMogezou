@@ -1,9 +1,13 @@
 (in-package :mazeofmogezou)
 
 
-;;(defparameter *data-root* (asdf:system-source-directory 'mazeofmogezou))
-;;(defparameter *img-root* (merge-pathnames "img/" *data-root*))
-;;(defparameter *sound-root* (merge-pathnames "sound/" *data-root*))
+(defparameter *data-root* (asdf:system-source-directory 'mazeofmogezou))
+(defparameter *img-root* (merge-pathnames "img/" *data-root*))
+(defparameter *sound-root* (merge-pathnames "sound/" *data-root*))
+;;build用
+;;(defparameter *img-root* "../img/")
+;;(defparameter *sound-root* "../sound/")
+;
 
 (defmacro with-double-buffering-2 ((var hwnd) &body body)
   "Evaluate body in a WITH-PAINT context where VAR is bound to an in-memory HDC
